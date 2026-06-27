@@ -1,0 +1,18 @@
+{
+  "name": "com.fy.scriptablesettings",
+  "displayName": "Fy Scriptable Settings",
+  "version": "0.1.0",
+  "unity": "6000.0",
+  "description": "Global ScriptableObject settings.",
+  "author": {
+    "name": "vgArchives"
+  },
+  "license": "MIT",
+  "samples": [
+    {
+      "displayName": "Settings Examples",
+      "description": "Examples of how to use the Scriptable Settings package.",
+      "path": "Samples~/Examples"
+    }
+  ]
+}

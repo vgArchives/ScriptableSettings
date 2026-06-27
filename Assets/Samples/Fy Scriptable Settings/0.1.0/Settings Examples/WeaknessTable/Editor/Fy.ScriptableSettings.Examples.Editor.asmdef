@@ -1,0 +1,20 @@
+{
+    "name": "Fy.ScriptableSettings.Examples.Editor",
+    "rootNamespace": "Fy.ScriptableSettings.Examples.Editor",
+    "references": [
+        "Fy.ScriptableSettings",
+        "Fy.ScriptableSettings.Editor",
+        "Fy.ScriptableSettings.Examples"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

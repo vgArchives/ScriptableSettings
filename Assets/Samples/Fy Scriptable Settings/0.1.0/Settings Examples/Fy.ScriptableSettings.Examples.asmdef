@@ -1,0 +1,16 @@
+{
+    "name": "Fy.ScriptableSettings.Examples",
+    "rootNamespace": "Fy.ScriptableSettings.Examples",
+    "references": [
+        "Fy.ScriptableSettings"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
