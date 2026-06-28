@@ -15,11 +15,16 @@ namespace Fy.ScriptableSettings.Editor
         internal const float CardRadius = 5f;
 
         internal static readonly Color IncludedColor = new(0.40f, 0.80f, 0.45f);
-        internal static readonly Color ExcludedColor = new(0.86f, 0.36f, 0.36f);
+        internal static readonly Color EditorOnlyColor = new(0.90f, 0.72f, 0.32f);
 
         private static bool IsDark => EditorGUIUtility.isProSkin;
 
         internal static Color MutedTextColor => IsDark ? new Color(1f, 1f, 1f, 0.72f) : new Color(0f, 0f, 0f, 0.6f);
+
+        /// <summary>
+        /// Persistent highlight for the currently selected list row.
+        /// </summary>
+        internal static Color SelectedRowColor => IsDark ? new Color(0.22f, 0.38f, 0.57f) : new Color(0.36f, 0.56f, 0.86f);
 
         /// <summary>
         /// Darker overlay for the first (and every other) list row in the alternating (zebra) pattern.

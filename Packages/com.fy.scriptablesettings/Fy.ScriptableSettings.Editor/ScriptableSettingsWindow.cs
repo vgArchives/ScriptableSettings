@@ -11,15 +11,18 @@ using UnityEngine.UIElements;
 namespace Fy.ScriptableSettings.Editor
 {
     /// <summary>
-    /// Single hub window for every <see cref="ScriptableSettings"/> type. The left pane lists all discovered types;
-    /// the right pane shows a standardized header, the preload toggle and build indicator, and either the type's
-    /// drawer body or a Create button when no asset exists yet.
+    /// Single hub window for every <see cref="ScriptableSettings"/> type. The left pane splits discovered types into a
+    /// "Runtime" tab (preloaded into builds) and an "Editor Only" tab (marked with <see cref="EditorOnlySettingsAttribute"/>);
+    /// the right pane shows a standardized header, a read-only build indicator, and either the type's drawer body or a
+    /// Create button when no asset exists yet.
     /// </summary>
     public sealed class ScriptableSettingsWindow : EditorWindow
     {
-        private readonly List<Type> _types = new();
+        private readonly List<Type> _runtimeTypes = new();
+        private readonly List<Type> _editorOnlyTypes = new();
 
-        private ListView _list;
+        private ListView _runtimeList;
+        private ListView _editorOnlyList;
         private ScrollView _detail;
         private Texture _settingsIcon;
 
@@ -42,17 +45,17 @@ namespace Fy.ScriptableSettings.Editor
             VisualElement leftPane = new VisualElement();
             leftPane.style.flexGrow = 1;
 
-            _list = new ListView
-            {
-                itemsSource = _types,
-                fixedItemHeight = 22f,
-                selectionType = SelectionType.Single,
-                makeItem = MakeRow,
-                bindItem = BindRow
-            };
-            _list.style.flexGrow = 1;
-            _list.selectionChanged += HandleSelectionChanged;
-            leftPane.Add(_list);
+            _runtimeList = BuildList(_runtimeTypes);
+            _editorOnlyList = BuildList(_editorOnlyTypes);
+
+            TabView tabs = new TabView();
+            tabs.style.flexGrow = 1;
+            tabs.Add(BuildListTab("Game Settings", _runtimeList));
+            tabs.Add(BuildListTab("Editor Settings", _editorOnlyList));
+            StretchTabHeaders(tabs);
+            tabs.activeTabChanged += (_, _) => HandleTabChanged(tabs);
+
+            leftPane.Add(tabs);
             leftPane.Add(BuildRootFolderFooter());
             split.Add(leftPane);
 
@@ -62,9 +65,13 @@ namespace Fy.ScriptableSettings.Editor
 
             rootVisualElement.Add(split);
 
-            if (_types.Count > 0)
+            if (_runtimeTypes.Count > 0)
             {
-                _list.selectedIndex = 0;
+                _runtimeList.selectedIndex = 0;
+            }
+            else if (_editorOnlyTypes.Count > 0)
+            {
+                ShowPlaceholder("Select a settings type.");
             }
             else
             {
@@ -74,10 +81,81 @@ namespace Fy.ScriptableSettings.Editor
 
         private void RefreshTypes()
         {
-            _types.Clear();
-            _types.AddRange(TypeCache.GetTypesDerivedFrom<ScriptableSettings>()
+            _runtimeTypes.Clear();
+            _editorOnlyTypes.Clear();
+
+            IEnumerable<Type> discovered = TypeCache.GetTypesDerivedFrom<ScriptableSettings>()
                 .Where(type => !type.IsAbstract && !type.IsGenericType && !IsTestAssembly(type.Assembly))
-                .OrderBy(type => type.Name));
+                .OrderBy(type => type.Name);
+
+            foreach (Type type in discovered)
+            {
+                if (ScriptableSettingsPreloadSync.IsEditorOnly(type))
+                {
+                    _editorOnlyTypes.Add(type);
+                }
+                else
+                {
+                    _runtimeTypes.Add(type);
+                }
+            }
+        }
+
+        private ListView BuildList(List<Type> source)
+        {
+            ListView list = new ListView
+            {
+                itemsSource = source,
+                fixedItemHeight = 22f,
+                selectionType = SelectionType.Single,
+                makeItem = MakeRow
+            };
+            list.style.flexGrow = 1;
+            list.bindItem = (element, index) => BindRow(list, source, element, index);
+            list.selectionChanged += _ => HandleSelectionChanged(list, source);
+
+            return list;
+        }
+
+        private static Tab BuildListTab(string label, ListView list)
+        {
+            Tab tab = new Tab(label);
+            tab.Add(list);
+
+            return tab;
+        }
+
+        /// <summary>
+        /// Makes the two tab headers share the full width of the left section, each centered.
+        /// </summary>
+        private static void StretchTabHeaders(TabView tabs)
+        {
+            tabs.RegisterCallback<AttachToPanelEvent>(_ =>
+            {
+                foreach (VisualElement header in tabs.Query<VisualElement>(className: "unity-tab__header").ToList())
+                {
+                    header.style.flexGrow = 1;
+                    header.style.justifyContent = Justify.Center;
+                }
+            });
+        }
+
+        private void HandleTabChanged(TabView tabs)
+        {
+            bool editorTab = tabs.selectedTabIndex == 1;
+            ListView list = editorTab ? _editorOnlyList : _runtimeList;
+            List<Type> source = editorTab ? _editorOnlyTypes : _runtimeTypes;
+
+            if (source.Count > 0)
+            {
+                list.selectedIndex = 0;
+                BuildDetail(source[0]);
+            }
+            else
+            {
+                list.ClearSelection();
+                BuildDetail(null);
+            }
         }
 
         /// <summary>
@@ -123,15 +201,16 @@ namespace Fy.ScriptableSettings.Editor
             return row;
         }
 
-        private void BindRow(VisualElement element, int index)
+        private void BindRow(ListView list, List<Type> source, VisualElement element, int index)
         {
-            Type type = _types[index];
+            bool selected = index == list.selectedIndex;
+            Type type = source[index];
             element.Q<Image>("icon").image = ResolveRowIcon(type);
             element.Q<Label>("label").text = ObjectNames.NicifyVariableName(type.Name);
-            element.style.backgroundColor =
-                index % 2 == 0 ? SettingsWindowStyles.RowDarkColor : SettingsWindowStyles.RowLightColor;
-            element.Q("marker").style.visibility =
-                index == _list.selectedIndex ? Visibility.Visible : Visibility.Hidden;
+            element.style.backgroundColor = selected
+                ? SettingsWindowStyles.SelectedRowColor
+                : index % 2 == 0 ? SettingsWindowStyles.RowDarkColor : SettingsWindowStyles.RowLightColor;
+            element.Q("marker").style.visibility = selected ? Visibility.Visible : Visibility.Hidden;
         }
 
         /// <summary>
@@ -152,17 +231,17 @@ namespace Fy.ScriptableSettings.Editor
             return _settingsIcon;
         }
 
-        private void HandleSelectionChanged(IEnumerable<object> _)
+        private void HandleSelectionChanged(ListView list, List<Type> source)
         {
-            _list.RefreshItems();
-            BuildDetail(SelectedType());
+            list.RefreshItems();
+            BuildDetail(SelectedType(list, source));
         }
 
-        private Type SelectedType()
+        private static Type SelectedType(ListView list, List<Type> source)
         {
-            int index = _list.selectedIndex;
+            int index = list.selectedIndex;
 
-            return index >= 0 && index < _types.Count ? _types[index] : null;
+            return index >= 0 && index < source.Count ? source[index] : null;
         }
 
         private VisualElement BuildRootFolderFooter()
@@ -281,7 +360,6 @@ namespace Fy.ScriptableSettings.Editor
             }
 
             card.Add(BuildReferencesSection(asset));
-            card.Add(BuildPreloadRow(asset));
             BuildDrawerSection(card, type, asset);
             _detail.Add(card);
         }
@@ -293,6 +371,7 @@ namespace Fy.ScriptableSettings.Editor
             MonoScript script = MonoScript.FromScriptableObject(asset);
             section.Add(CreateReadOnlyReference("Script", script, typeof(MonoScript)));
             section.Add(CreateReadOnlyReference("Asset", asset, asset.GetType()));
+            section.Add(BuildBuildStatusField(asset.GetType()));
 
             return section;
         }
@@ -357,6 +436,7 @@ namespace Fy.ScriptableSettings.Editor
             Button createButton = new Button(() =>
             {
                 ScriptableSettingsEditorResolver.Create(type);
+                ScriptableSettingsPreloadSync.Reconcile();
                 BuildDetail(type);
             })
             {
@@ -369,37 +449,35 @@ namespace Fy.ScriptableSettings.Editor
             card.Add(section);
         }
 
-        private static VisualElement BuildPreloadRow(ScriptableSettings asset)
+        /// <summary>
+        /// A read-only field styled like the Script/Asset object fields, so the label column lines up with them.
+        /// </summary>
+        private static VisualElement BuildBuildStatusField(Type type)
         {
-            VisualElement row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.alignItems = Align.Center;
-            row.style.marginTop = SettingsWindowStyles.Space1;
+            VisualElement field = new VisualElement();
+            field.AddToClassList(BaseField<bool>.ussClassName);
+            field.style.flexDirection = FlexDirection.Row;
+            field.style.alignItems = Align.Center;
 
-            Toggle toggle = new Toggle("Preload") { value = asset.Preload };
-            toggle.style.flexGrow = 1;
-            row.Add(toggle);
+            Label label = new Label("Build Status");
+            label.AddToClassList(BaseField<bool>.labelUssClassName);
+            field.Add(label);
 
-            VisualElement pillHost = new VisualElement();
-            pillHost.style.flexShrink = 0;
-            pillHost.Add(BuildBuildPill(asset.Preload));
-            row.Add(pillHost);
+            VisualElement input = new VisualElement();
+            input.AddToClassList(BaseField<bool>.inputUssClassName);
+            input.style.flexDirection = FlexDirection.Row;
+            input.style.alignItems = Align.Center;
+            input.Add(BuildBuildPill(!ScriptableSettingsPreloadSync.IsEditorOnly(type)));
+            field.Add(input);
 
-            toggle.RegisterValueChangedCallback(changeEvent =>
-            {
-                ScriptableSettingsPreloadSync.SetPreload(asset, changeEvent.newValue);
-                pillHost.Clear();
-                pillHost.Add(BuildBuildPill(changeEvent.newValue));
-            });
-
-            return row;
+            return field;
         }
 
         private static VisualElement BuildBuildPill(bool isPreloaded)
         {
             return isPreloaded
-                ? SettingsWindowStyles.CreateStatusPill(SettingsWindowStyles.IncludedColor, "In Build")
-                : SettingsWindowStyles.CreateStatusPill(SettingsWindowStyles.ExcludedColor, "Excluded");
+                ? SettingsWindowStyles.CreateStatusPill(SettingsWindowStyles.IncludedColor, "Preloaded")
+                : SettingsWindowStyles.CreateStatusPill(SettingsWindowStyles.EditorOnlyColor, "Editor Only");
         }
 
         private static void BuildDrawerSection(VisualElement card, Type type, ScriptableSettings asset)
