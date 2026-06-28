@@ -10,14 +10,6 @@ namespace Fy.ScriptableSettings
     /// </summary>
     public abstract class ScriptableSettings : ScriptableObject
     {
-        [Tooltip("Should this setting be included in the preloaded assets so it is available in builds?")]
-        [SerializeField] private bool _preload = true;
-
-        /// <summary>
-        /// Gets a value indicating whether this setting is included in the build's preloaded assets.
-        /// </summary>
-        public bool Preload => _preload;
-
         /// <summary>
         /// Non-virtual by design. Override <see cref="OnLoaded"/> for one-time initialization instead.
         /// </summary>
