@@ -25,6 +25,7 @@ namespace Fy.ScriptableSettings.Editor
         private ListView _editorOnlyList;
         private ScrollView _detail;
         private Texture _settingsIcon;
+        private Type _selectedType;
 
         [MenuItem("Window/Fy/Scriptable Settings")]
         public static void Open()
@@ -77,6 +78,30 @@ namespace Fy.ScriptableSettings.Editor
             {
                 ShowPlaceholder("No settings types found.");
             }
+
+            EditorApplication.projectChanged -= HandleProjectChanged;
+            EditorApplication.projectChanged += HandleProjectChanged;
+        }
+
+        private void OnDisable()
+        {
+            EditorApplication.projectChanged -= HandleProjectChanged;
+        }
+
+        /// <summary>
+        /// Keeps the window in sync when assets change outside it (e.g. an asset is deleted in the Project window):
+        /// refreshes the row icons and re-evaluates the current selection so it flips to its create/missing state.
+        /// </summary>
+        private void HandleProjectChanged()
+        {
+            if (_runtimeList == null)
+            {
+                return;
+            }
+
+            _runtimeList.RefreshItems();
+            _editorOnlyList.RefreshItems();
+            BuildDetail(_selectedType);
         }
 
         private void RefreshTypes()
@@ -339,6 +364,7 @@ namespace Fy.ScriptableSettings.Editor
 
         private void BuildDetail(Type type)
         {
+            _selectedType = type;
             _detail.Clear();
 
             if (type == null)
@@ -437,6 +463,8 @@ namespace Fy.ScriptableSettings.Editor
             {
                 ScriptableSettingsEditorResolver.Create(type);
                 ScriptableSettingsPreloadSync.Reconcile();
+                _runtimeList.RefreshItems();
+                _editorOnlyList.RefreshItems();
                 BuildDetail(type);
             })
             {
