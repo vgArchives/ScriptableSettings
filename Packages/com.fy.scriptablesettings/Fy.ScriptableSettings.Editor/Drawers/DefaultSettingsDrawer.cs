@@ -12,7 +12,6 @@ namespace Fy.ScriptableSettings.Editor
     public sealed class DefaultSettingsDrawer : ISettingsDrawer
     {
         private const string ScriptField = "m_Script";
-        private const string PreloadField = "_preload";
 
         /// <inheritdoc/>
         public VisualElement CreateBody(SerializedObject serializedObject)
@@ -26,7 +25,7 @@ namespace Fy.ScriptableSettings.Editor
             {
                 enterChildren = false;
 
-                if (iterator.propertyPath == ScriptField || iterator.propertyPath == PreloadField)
+                if (iterator.propertyPath == ScriptField)
                 {
                     continue;
                 }
