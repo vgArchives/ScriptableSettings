@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ScriptableSettings` base class with self-registration on load.
 - `ScriptableSettingsRegistry` with `TryGet<T>` (pure lookup) and `Get<T>` (logs and returns null when missing).
 - Per-class drawer system (`SettingsDrawerBase<T>`) with a standardized default drawer.
-- Single hub window (`Window/Fy/Scriptable Settings`) with create, preload toggle, build indicator, and a
+- Single hub window (`Window/Fy/Scriptable Settings`) with create, a read-only build indicator, and a
   configurable folder for newly created assets.
+- `[EditorOnlySettings]` attribute to mark a settings type as editor-only and keep its asset out of builds;
+  types without it are preloaded by default.
 - Build preload synchronization, including a build preprocessor that reconciles the preloaded-assets list.
