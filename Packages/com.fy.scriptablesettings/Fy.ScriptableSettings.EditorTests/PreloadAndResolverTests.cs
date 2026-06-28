@@ -61,10 +61,20 @@ namespace Fy.ScriptableSettings.EditorTests
         }
 
         [Test]
-        public void Reconcile_RemovesExcludedAsset()
+        public void Reconcile_AddsNonEditorOnlyAsset()
         {
-            ScriptableSettings asset = CreateAsset();
-            ScriptableSettingsPreloadSync.SetPreload(asset, false);
+            ScriptableSettings asset = CreateAsset(typeof(PreloadTestSettings));
+            PlayerSettings.SetPreloadedAssets(new Object[0]);
+
+            ScriptableSettingsPreloadSync.Reconcile();
+
+            Assert.IsTrue(PlayerSettings.GetPreloadedAssets().Contains(asset));
+        }
+
+        [Test]
+        public void Reconcile_RemovesEditorOnlyAsset()
+        {
+            ScriptableSettings asset = CreateAsset(typeof(EditorOnlyTestSettings));
             PlayerSettings.SetPreloadedAssets(new Object[] { asset });
 
             ScriptableSettingsPreloadSync.Reconcile();
@@ -73,20 +83,20 @@ namespace Fy.ScriptableSettings.EditorTests
         }
 
         [Test]
-        public void SetPreload_TogglesMembershipInPreloadList()
+        public void IsEditorOnly_MatchesAttribute()
         {
-            ScriptableSettings asset = CreateAsset();
-
-            ScriptableSettingsPreloadSync.SetPreload(asset, false);
-            Assert.IsFalse(PlayerSettings.GetPreloadedAssets().Contains(asset));
-
-            ScriptableSettingsPreloadSync.SetPreload(asset, true);
-            Assert.IsTrue(PlayerSettings.GetPreloadedAssets().Contains(asset));
+            Assert.IsTrue(ScriptableSettingsPreloadSync.IsEditorOnly(typeof(EditorOnlyTestSettings)));
+            Assert.IsFalse(ScriptableSettingsPreloadSync.IsEditorOnly(typeof(PreloadTestSettings)));
         }
 
         private ScriptableSettings CreateAsset()
         {
-            ScriptableSettings asset = ScriptableSettingsEditorResolver.Create(typeof(PreloadTestSettings));
+            return CreateAsset(typeof(PreloadTestSettings));
+        }
+
+        private ScriptableSettings CreateAsset(System.Type type)
+        {
+            ScriptableSettings asset = ScriptableSettingsEditorResolver.Create(type);
             _createdAssetPaths.Add(AssetDatabase.GetAssetPath(asset));
 
             return asset;
